@@ -16,7 +16,7 @@
 #define SOCKET_SERVER 1
 #define SOCKET_CLIENT 2
 
-int set_address_info(struct addrinfo hints, char prot_osi3, char prot_osi4) {
+struct addrinfo set_address_info(struct addrinfo hints, char prot_osi3, char prot_osi4) {
     int domain, type;
 
     type = set_connection_type(prot_osi4);
@@ -26,9 +26,9 @@ int set_address_info(struct addrinfo hints, char prot_osi3, char prot_osi4) {
 
     hints.ai_socktype = type;
     hints.ai_family = domain;
-    hints.ai_flags = AI_PASSIVE; // Use my IP address.
+    hints.ai_flags = AI_PASSIVE; // Use system IP address
 
-    return 0;
+    return hints;
 }
 
 int set_connection_type(int prot_osi4) {
@@ -74,7 +74,7 @@ int find_live_connection(struct addrinfo *service_info, struct addrinfo hints, i
             }
 
             if (hints.ai_socktype == SOCKET_TCP)
-                retval = listen(socketfd, SOCKET_BACKLOG);
+               retval = listen(socketfd, SOCKET_BACKLOG);
         }
 
         if (socket_type == SOCKET_CLIENT) {
@@ -97,13 +97,12 @@ int create_inet_server_socket(const char *bind_addr, const char *bind_port, char
     int socketfd, retval;
     struct addrinfo hints, *service_info;
 
-    if (bind_addr == NULL || bind_port == NULL) {
+    if (bind_addr == NULL || bind_port == NULL)
         return -1;
-    }
 
-    set_address_info(hints, prot_osi3, prot_osi4);
-    if (retval = getaddrinfo(bind_addr, bind_port, &hints, &service_info) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(retval));
+    hints =  set_address_info(hints, prot_osi3, prot_osi4);
+    if ((retval = getaddrinfo(bind_addr, bind_port, &hints, &service_info)) != 0) {
+        fprintf(stderr, "Server socket -> getaddrinfo: %s\n%d", gai_strerror(retval), service_info->ai_flags);
         exit(EXIT_FAILURE);
     }
 
@@ -119,17 +118,16 @@ int create_inet_server_socket(const char *bind_addr, const char *bind_port, char
     return socketfd;
 }
 
-int create_inet_stream_socket(const char* host, const char* service, char prot_osi3, int flags) {
+int create_inet_client_socket(const char* host, const char* service, char prot_osi3, int flags) {
     int socketfd, retval, conn_type;
     struct addrinfo hints, *service_info;
 
-    if (host == NULL || service == NULL) {
+    if (host == NULL || service == NULL)
         return -1;
-    }
 
-    set_address_info(hints, prot_osi3, SOCK_STREAM);
-    if (retval = getaddrinfo(host, service, &hints, &service_info) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(retval));
+    hints = set_address_info(hints, prot_osi3, SOCK_STREAM);
+    if ((retval = getaddrinfo(host, service, &hints, &service_info)) != 0) {
+        fprintf(stderr, "Client socket -> getaddrinfo: %s\n", gai_strerror(retval));
         exit(EXIT_FAILURE);
     }
 
@@ -145,7 +143,7 @@ int create_inet_stream_socket(const char* host, const char* service, char prot_o
     return socketfd;
 }
 
-int accept_inet_stream_socket(int sockfd) {
+int accept_inet_client_socket(int sockfd) {
     struct sockaddr_in client_info;
     socklen_t addrlen = sizeof(struct sockaddr_storage);
 
